@@ -116,6 +116,13 @@
       const persisted = localStorage.getItem(`buslog:log-${SCHEMA_VERSION}`);
       const log = persisted !== null ? Papa.parse(persisted).data : [];
 
+      function download() {
+        const a = document.createElement("a");
+        a.download = "buslog.csv";
+        a.href = `data:text/csv,${encodeURIComponent(Papa.unparse({ fields: schema, data: log }))}`;
+        a.click();
+      }
+
       while (true) {
         document.querySelector("table").replaceChildren(...tableChildrenFromData(log, schema));
         const { action } = Object.fromEntries(await form("home"));
@@ -133,12 +140,13 @@
             }
           }
         } else if (action === "share") {
-          await navigator.share?.({ files: [new File([Papa.unparse({ fields: schema, data: log })], "buslog.csv", { type: "text/csv" })] });
+          try {
+            await navigator.share({ files: [new File([Papa.unparse({ fields: schema, data: log })], "buslog.csv", { type: "text/csv" })] });
+          } catch (e) {
+            download();
+          }
         } else if (action === "download") {
-          const a = document.createElement("a");
-          a.download = "buslog.csv";
-          a.href = `data:text/csv,${encodeURIComponent(Papa.unparse({ fields: schema, data: log }))}`;
-          a.click();
+          download();
         }
       }
     });
