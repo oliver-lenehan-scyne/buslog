@@ -5,34 +5,81 @@
   <title>BUSLOG</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="papaparse.min.js"></script>
+  <style>
+    table, th, td {
+      border: 1px solid black;
+    }
+  </style>
 </head>
 <body>
   <h1>BUSLOG</h1>
   <main>
     <form action="javascript:void(0)" onsubmit="buslogSubmit(this)">
       <fieldset>
-        <p><label>Stop ID: <input type="number" name="stopid"></label></p>
+        <p><label>Stop ID: <input type="number" name="stopid" required></label></p>
       </fieldset>
       <fieldset>
-        <p><label><input type="radio" name="event" value="arrive"> Departing</label></p>
-        <p><label><input type="radio" name="event" value="depart"> Arriving</label></p>
+        <p><label><input type="radio" name="event" value="arrive" required> Departing</label></p>
+        <p><label><input type="radio" name="event" value="depart" required> Arriving</label></p>
       </fieldset>
       <fieldset>
-        <p><label><input type="number" name="route"></label></p>
+        <p><label><input type="number" name="route" required></label></p>
         <p><button type="submit">Submit</button></p>
       </fieldset>
     </form>
+    <hr>
+    <table></table>
   </main>
+  <hr>
   <button onclick="buslogDownload()">Export</button>
+  <button onclick="localStorage.removeItem('buslog:log');buslogShow()">Clear</button>
   <script>
     const BUSLOG = [];
+
+    window.addEventListener("load", () => {
+      buslogRead();
+    });
+
+    function buslogRead() {
+      const log = localStorage.getItem("buslog:log");
+      if (log === null) return;
+      BUSLOG.push(...Papa.parse(log, { header: true }).data);
+      buslogShow();
+    }
+
+    function buslogWrite() {
+      localStorage.setItem("buslog:log", Papa.unparse(BUSLOG));
+      buslogShow();
+    }
+
+    function buslogShow() {
+      const table = document.querySelector("table");
+      table.replaceChildren();
+      table.insertAdjacentHTML("afterbegin", "<tr><th>stopid</th><th>event</th><th>route</th><th>timestamp</th></tr>");
+      for (const { stopid, event, route, timestamp } of BUSLOG) {
+        const row = document.createElement("tr");
+        const td0 = document.createElement("td");
+        td0.textContent = stopid;
+        const td1 = document.createElement("td");
+        td1.textContent = event;
+        const td2 = document.createElement("td");
+        td2.textContent = route;
+        const td3 = document.createElement("td");
+        td3.textContent = timestamp;
+        row.append(td0, td1, td2, td3);
+        table.append(row);
+      }
+    }
+
     function buslogSubmit(form) {
       const record = { ...Object.fromEntries(new FormData(form)), timestamp: new Date().toJSON() };
       form.reset();
       form.elements["stopid"].value = record.stopid;
       BUSLOG.push(record);
+      buslogWrite();
       return true;
     }
+
     function buslogDownload() {
       const a = document.createElement("a");
       a.download = "buslog.csv";
