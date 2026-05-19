@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <form action="javascript:void(0)" onsubmit="formEncrypt(this)">
+    <p><label>Master Password:<br><input type="password" name="password" required></label></p>
+    <p><textarea name="plaintext"></textarea></p>
+    <p><button type="submit">Encrypt</button></p>
+  </form>
+  <pre><code id="EL_OUTPUT"></code></pre>
+  <script src="crypto.js"></script>
+  <script>
+    async function formEncrypt(form) {
+      const data = new FormData(form);
+      const key = await derive(data.get("password"));
+      const msg = await encrypt(data.get("plaintext"), key);
+      EL_OUTPUT.textContent = JSON.stringify(msg);
+    }
+  </script>
+</body>
+</html>

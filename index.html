@@ -4,8 +4,11 @@
   <meta charset="utf-8">
   <title>BUSLOG</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="papaparse.min.js"></script>
+  <script src="lib/papaparse.min.js"></script>
   <style>
+    :root {
+      color-scheme: light, dark;
+    }
     table, th, td {
       border: 1px solid black;
     }
@@ -13,79 +16,132 @@
 </head>
 <body>
   <h1>BUSLOG</h1>
-  <main>
-    <form action="javascript:void(0)" onsubmit="buslogSubmit(this)">
-      <fieldset>
-        <p><label>Stop ID: <input type="number" name="stopid" required></label></p>
-      </fieldset>
-      <fieldset>
-        <p><label><input type="radio" name="event" value="arrive" required> Departing</label></p>
-        <p><label><input type="radio" name="event" value="depart" required> Arriving</label></p>
-      </fieldset>
-      <fieldset>
-        <p><label><input type="number" name="route" required></label></p>
-        <p><button type="submit">Submit</button></p>
-      </fieldset>
-    </form>
-    <hr>
+  <main></main>
+  <div id="EL_DBEUG" hidden>
     <table></table>
-  </main>
-  <hr>
-  <button onclick="buslogDownload()">Export</button>
-  <button onclick="localStorage.removeItem('buslog:log');buslogShow()">Clear</button>
+    <p>
+      <button onclick="flush();">Clear</button>
+    </p>
+  </div>
+  <template id="template-home">
+    <form name="home" autocomplete="off">
+      <p>
+        <button type="submit" name="action" value="start">Start</button>
+      </p>
+      <p>
+        <button type="submit" name="action" value="share">Share</button>
+        <button type="submit" name="action" value="download">Download</button>
+      </p>
+    </form>
+  </template>
+  <template id="template-setup">
+    <form name="setup" autocomplete="off">
+      <p><label>Stop ID<br><input type="text" name="stopid" placeholder="1123741" required></label></p>
+      <p><label>Surveyor<br><input type="text" name="author" placeholder="Jospeh Bloggs" required></label></p>
+      <p><button type="submit">Start</button></p>
+    </form>
+  </template>
+  <template id="template-menu">
+    <form name="menu" autocomplete="off">
+      <p><button type="submit" name="event" value="depart">Departing</button></p>
+      <p><button type="submit" name="event" value="arrive">Arriving</button></p>
+    </form>
+  </template>
+  <template id="template-entry">
+    <form name="entry" autocomplete="off">
+      <p><label>Route Number<br><input type="text" name="route" placeholder="144" required></label></p>
+      <p><button type="submit">Submit</button></p>
+    </form>
+  </template>
   <script>
-    const BUSLOG = [];
+    const SCHEMA = ["stopid", "author", "event", "route", "timestamp"];
+    const SCHEMA_VERSION = "0.0.1";
+    const ADDRESS = {"ciphertext":[146,133,60,238,54,175,3,10,235,10,71,141,71,150,105,3,61,4,204,165,184,174,187,60,36,40,227,253,31,207,24,240,164,115,240,98,41,36,162,251,155,229,5,78,214,87,49,155,61,34,27,202,32,228,49,202,34,38,181,205],"iv":[175,133,128,43,180,130,52,134,66,79,247,221],"salt":[128,79,128,185,149,102,42,252,198,178,135,184,158,81,221,229]};
 
-    window.addEventListener("load", () => {
-      buslogRead();
-    });
-
-    function buslogRead() {
-      const log = localStorage.getItem("buslog:log");
-      if (log === null) return;
-      BUSLOG.push(...Papa.parse(log, { header: true }).data);
-      buslogShow();
+    async function form(name) {
+      /** @type {HTMLTemplateElement} */
+      const template = document.getElementById(`template-${name}`);
+      const fragment = document.importNode(template.content, true);
+      const form = fragment.querySelector("form");
+      return await new Promise((resolve, _reject) => {
+        form.addEventListener("submit", (ev) => {
+          ev.preventDefault();
+          resolve(new FormData(form, ev.submitter));
+        });
+        document.querySelector("main").replaceChildren(fragment);
+      });
     }
 
-    function buslogWrite() {
-      localStorage.setItem("buslog:log", Papa.unparse(BUSLOG));
-      buslogShow();
-    }
-
-    function buslogShow() {
-      const table = document.querySelector("table");
-      table.replaceChildren();
-      table.insertAdjacentHTML("afterbegin", "<tr><th>stopid</th><th>event</th><th>route</th><th>timestamp</th></tr>");
-      for (const { stopid, event, route, timestamp } of BUSLOG) {
-        const row = document.createElement("tr");
-        const td0 = document.createElement("td");
-        td0.textContent = stopid;
-        const td1 = document.createElement("td");
-        td1.textContent = event;
-        const td2 = document.createElement("td");
-        td2.textContent = route;
-        const td3 = document.createElement("td");
-        td3.textContent = timestamp;
-        row.append(td0, td1, td2, td3);
-        table.append(row);
+    function tableChildrenFromData(data, headings) {
+      const children = [];
+      if (headings) {
+        const thead = document.createElement("thead");
+        const tr = document.createElement("tr");
+        for (const heading of headings) {
+          const th = document.createElement("th");
+          th.textContent = heading;
+          tr.append(th);
+        }
+        thead.append(tr);
+        children.push(thead);
       }
+      const tbody = document.createElement("tbody");
+      for (const row of data) {
+        const tr = document.createElement("tr");
+        for (const cell of row) {
+          const td = document.createElement("td");
+          td.textContent = cell;
+          tr.append(td);
+        }
+        tbody.append(tr);
+      }
+      children.push(tbody);
+      return children;
     }
 
-    function buslogSubmit(form) {
-      const record = { ...Object.fromEntries(new FormData(form)), timestamp: new Date().toJSON() };
-      form.reset();
-      form.elements["stopid"].value = record.stopid;
-      BUSLOG.push(record);
-      buslogWrite();
-      return true;
+    function flush() {
+      for (let i = 0; i < localStorage.length; ++i) {
+        const key = localStorage.key(i);
+        if (key.startsWith("buslog:")) {
+          localStorage.removeItem(key);
+        }
+      }
+      window.location.assign(window.location.pathname);
     }
 
-    function buslogDownload() {
-      const a = document.createElement("a");
-      a.download = "buslog.csv";
-      a.href = `data:text/csv,${encodeURIComponent(Papa.unparse(BUSLOG))}`;
-      a.click();
-    }
+    window.addEventListener("load", async () => {
+      if (new URLSearchParams(window.location.search).has("debug")) EL_DBEUG.hidden = false;
+
+      const schema = ["stopid", "author", "event", "route", "timestamp"];
+      const persisted = localStorage.getItem(`buslog:log-${SCHEMA_VERSION}`);
+      const log = persisted !== null ? Papa.parse(persisted).data : [];
+
+      while (true) {
+        document.querySelector("table").replaceChildren(...tableChildrenFromData(log, schema));
+        const { action } = Object.fromEntries(await form("home"));
+        if (action === "start") {
+          while (true) {
+            document.querySelector("table").replaceChildren(...tableChildrenFromData(log, schema));
+            const { stopid, author } = Object.fromEntries(await form("setup"));
+            while (true) {
+              document.querySelector("table").replaceChildren(...tableChildrenFromData(log, schema));
+              const { event } = Object.fromEntries(await form("menu"));
+              const timestamp = new Date().toJSON();
+              const { route } = Object.fromEntries(await form("entry"));
+              log.push([stopid, author, event, route, timestamp]);
+              localStorage.setItem(`buslog:log-${SCHEMA_VERSION}`, Papa.unparse(log));
+            }
+          }
+        } else if (action === "share") {
+          await navigator.share?.({ files: [new File([Papa.unparse({ fields: schema, data: log })], "buslog.csv", { type: "text/csv" })] });
+        } else if (action === "download") {
+          const a = document.createElement("a");
+          a.download = "buslog.csv";
+          a.href = `data:text/csv,${encodeURIComponent(Papa.unparse({ fields: schema, data: log }))}`;
+          a.click();
+        }
+      }
+    });
   </script>
 </body>
 </html>
