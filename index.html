@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BUSLOG</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="papaparse.min.js"></script>
+</head>
+<body>
+  <h1>BUSLOG</h1>
+  <main>
+    <form action="javascript:void(0)" onsubmit="buslogSubmit(this)">
+      <fieldset>
+        <p><label>Stop ID: <input type="number" name="stopid"></label></p>
+      </fieldset>
+      <fieldset>
+        <p><label><input type="radio" name="event" value="arrive"> Departing</label></p>
+        <p><label><input type="radio" name="event" value="depart"> Arriving</label></p>
+      </fieldset>
+      <fieldset>
+        <p><label><input type="number" name="route"></label></p>
+        <p><button type="submit">Submit</button></p>
+      </fieldset>
+    </form>
+  </main>
+  <button onclick="buslogDownload()">Export</button>
+  <script>
+    const BUSLOG = [];
+    function buslogSubmit(form) {
+      const record = { ...Object.fromEntries(new FormData(form)), timestamp: new Date().toJSON() };
+      form.reset();
+      form.elements["stopid"].value = record.stopid;
+      BUSLOG.push(record);
+      return true;
+    }
+    function buslogDownload() {
+      const a = document.createElement("a");
+      a.download = "buslog.csv";
+      a.href = `data:text/csv,${encodeURIComponent(Papa.unparse(BUSLOG))}`;
+      a.click();
+    }
+  </script>
+</body>
+</html>
