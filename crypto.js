@@ -1,3 +1,20 @@
+/**
+ * @typedef {object} DerivedKey
+ * @property {ArrayLike<number>} key
+ * @property {ArrayLike<number>} salt
+ */
+/**
+ * @typedef {object} EncryptedMessage
+ * @property {ArrayLike<number>} ciphertext
+ * @property {ArrayLike<number>} iv
+ * @property {ArrayLike<number>} salt
+ */
+
+/**
+ * @param {string} password
+ * @param {{ salt: ArrayLike<number> }} options
+ * @returns {DerivedKey}
+ */
 async function derive(password, { salt = crypto.getRandomValues(new Uint8Array(16)) } = {}) {
   password = new TextEncoder().encode(password);
 
@@ -12,6 +29,11 @@ async function derive(password, { salt = crypto.getRandomValues(new Uint8Array(1
   return { key, salt: [...salt] };
 }
 
+/**
+ * @param {string} plaintext
+ * @param {DerivedKey} key
+ * @returns {EncryptedMessage}
+ */
 async function encrypt(plaintext, { key, salt }) {
   plaintext = new TextEncoder().encode(plaintext);
 
@@ -26,6 +48,11 @@ async function encrypt(plaintext, { key, salt }) {
   return { ciphertext: [...ciphertext], iv: [...iv], salt };
 }
 
+/**
+ * @param {Omit<EncryptedMessage, "salt">} message
+ * @param {Omit<DerivedKey, "salt">} key
+ * @returns {EncryptedMessage}
+ */
 async function decrypt({ ciphertext, iv }, { key }) {
   return new TextDecoder().decode(new Uint8Array(await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: Uint8Array.from(iv) },
