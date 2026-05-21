@@ -283,6 +283,14 @@
     </button>
   </footer>
   <script>
+    if (window.location.search === "?delete_all") {
+      for (let i = 0; i < localStorage.length; ++i) {
+        const key = localStorage.key(i);
+        if (key.startsWith("buslog:") || key.startsWith("bus-survery:")) localStorage.removeItem(key);
+      }
+      window.location.replace(window.location.pathname);
+    }
+
     const SCHEMA = ["stopid", "author", "event", "route", "timestamp"];
     const SCHEMA_VERSION = "0.0.1";
 
