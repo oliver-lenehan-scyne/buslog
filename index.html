@@ -279,9 +279,13 @@
     const mainForm = document.getElementById("main");
     const entryForm = document.getElementById("entry");
 
+    function submitButtonCheck(form) {
+      for (const submit of form.querySelectorAll(`button[type=submit]`)) submit.disabled = !form.checkValidity();
+    }
+
     function submitButtonValidator(form) {
       form.addEventListener("input", () => {
-        for (const submit of form.querySelectorAll(`button[type=submit]`)) submit.disabled = !form.checkValidity();
+        submitButtonCheck(form);
       });
     }
 
@@ -309,7 +313,6 @@
       ev.preventDefault();
       const mainData = new FormData(mainForm);
       mainForm.hidden = true;
-
       entryForm.addEventListener("submit", (ev) => {
         ev.preventDefault();
         const entryData = new FormData(entryForm);
@@ -321,6 +324,8 @@
         console.log({ stopid, author, event, route, timestamp });
         log.push([stopid, author, event, route, timestamp]);
         localStorage.setItem(`buslog:log-${SCHEMA_VERSION}`, Papa.unparse(log));
+        entryForm.reset();
+        submitButtonCheck(entryForm);
       });
       entryForm.hidden = false;
     });
