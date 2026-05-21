@@ -177,6 +177,12 @@
       gap: 1rem;
     }
 
+    .component-metadata {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+    }
+
     #b-circle {
       display: inline-flex;
       align-items: center;
@@ -219,6 +225,10 @@
       </fieldset>
     </form>
     <form id="entry" autocomplete="off" hidden>
+      <div class="component-metadata">
+        <div>StopID: <span id="fill-stopid"></span></div>
+        <div>Author: <span id="fill-author"></span></div>
+      </div>
       <fieldset>
         <div class="component-radiogroup">
           <div class="component-radiogroup-radioitem">
@@ -313,6 +323,8 @@
       ev.preventDefault();
       const mainData = new FormData(mainForm);
       mainForm.hidden = true;
+      document.getElementById("fill-stopid").textContent = mainData.get("stopid");
+      document.getElementById("fill-author").textContent = mainData.get("author");
       entryForm.addEventListener("submit", (ev) => {
         ev.preventDefault();
         const entryData = new FormData(entryForm);
