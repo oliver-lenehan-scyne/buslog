@@ -1,0 +1,77 @@
+
+
+.component-stopclock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding-bottom: 2rem;
+}
+.component-stopclock time {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 50%;
+  max-width: 50%;
+  font-size: 2rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+<div class="component-stopclock">
+  <time></time>
+  <input type="text" name="timestamp" required hidden>
+  <button type="button">
+    <span class="component-textlabel">
+        <span class="material-symbols-outlined">timer</span>
+        <span class="text">Time</span>
+      </span>
+  </button>
+</div>
+
+
+// for (const root of document.querySelectorAll(".component-stopclock")) {
+//   const time = root.querySelector("time");
+//   const input = root.querySelector("input");
+//   const button = root.querySelector("button");
+
+//   setInterval(() => {
+//     if (input.value) {
+//       const now = new Date(input.value);
+//       time.textContent = now.toLocaleTimeString();
+//     } else {
+//       const now = new Date();
+//       time.textContent = now.toLocaleTimeString();
+//     }
+//     button.addEventListener("click" , () => {
+//       const now = new Date();
+//       input.value = now.toJSON();
+//     });
+//   }, 100);
+// }
+
+
+async function submission(form) {
+  const submitBtns = [...form.querySelectorAll(`button[type=submit]`)];
+  const intervalId = setInterval(() => {
+    for (const submitBtn of submitBtns) {
+      submitBtn.disabled = !form.checkValidity();
+    }
+  }, 1000);
+  form.addEventListener("input", () => {
+    for (const submitBtn of submitBtns) {
+      submitBtn.disabled = !form.checkValidity();
+    }
+  });
+  return await new Promise((resolve, reject) => {
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      clearInterval(intervalId);
+      form.reset();
+      for (const submitBtn of form.querySelectorAll(`button[type=submit]`)) {
+        submitBtn.disabled = !form.checkValidity();
+      }
+      resolve(new FormData(form, event.submitter));
+    });
+  });
+}
