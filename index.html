@@ -335,8 +335,14 @@
       });
     }
 
+    function save() {
+      const now = new Date();
+      const name = `bus-survey-${now.getFullYear()}-${(1+now.getMonth()).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}.csv`;
+      return new File([Papa.unparse({ fields: SCHEMA, data: log })], "bus-survey.csv", { type: "text/csv" })
+    }
+
     async function browserDownload() {
-      const file = new File([Papa.unparse({ fields: SCHEMA, data: log })], "bus-survey.csv", { type: "text/csv" });
+      const file = save();
       const a = document.createElement("a");
       a.download = file.name;
       a.href = `data:${file.type},${encodeURIComponent(await file.text())}`;
@@ -344,7 +350,7 @@
     }
 
     async function browserShare() {
-      const file = new File([Papa.unparse({ fields: SCHEMA, data: log })], "bus-survey.csv", { type: "text/csv" });
+      const file = save();
       try {
         await navigator.share({ files: [file] });
       } catch (e) {
