@@ -315,7 +315,7 @@
       window.location.replace(window.location.pathname);
     }
 
-    const SCHEMA = ["stopid", "author", "event", "route", "timestamp"];
+    const SCHEMA = ["stopid", "author", "event", "route", "timestamp", "location"];
     const SCHEMA_VERSION = "0.0.1";
 
     const persisted = localStorage.getItem(`bus-survey:log-${SCHEMA_VERSION}`);
@@ -352,52 +352,79 @@
       await navigator.share({ files: [save()] }).catch(() => browserDownload());
     }
 
-    /**
-     * @returns {Promise<{ lon: number, lat: number, t: number } | null>}
-    */
-    async function gps(hold = 5000) {
-      /**
-       * @returns {Promise<GeolocationPosition>}
-      */
-      async function gpsWithHold(accurate) {
-        return await new Promise(async (resolve) => {
-          const positions = [];
-          let timeout = null;
-          try {
-            const watchId = navigator.geolocation.watchPosition(
-              (position) => {
-                positions.push(position);
-                if (timeout === null) {
-                  const t0 = Date.now();
-                  timeout = setTimeout(() => {
-                    navigator.geolocation.clearWatch(watchId)
-                    resolve(positions);
-                  }, (t0 + hold) - Date.now());
-                }
-              },
-              (error) => {
+    globalThis.GPS = (() => {
+      let _position = null;
+      let _timeout = 1 * 60 * 1000;
+      let _active = false;
+      const refresh = () => {
+        let nReports = 0;
+        let initialTimeoutId = null;
+        let locateTimeoutId = null;
+        if (_active) return false;
+        else _active = true;
+        try {
+          const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              if (initialTimeoutId !== null) {
+                clearTimeout(initialTimeoutId);
+                initialTimeoutId = null
+              }
+              if (locateTimeoutId === null) {
+                locateTimeoutId = setTimeout(() => {
+                  locateTimeoutId = null;
+                  navigator.geolocation.clearWatch(watchId);
+                  _active = false;
+                  if (_position === null) setTimeout(refresh, 5 * _timeout);
+                }, _timeout);
+              }
+              if (nReports >= 5) {
+                clearTimeout(locateTimeoutId);
                 navigator.geolocation.clearWatch(watchId);
-                resolve(positions);
-              },
-              { enableHighAccuracy: accurate },
-            );
-          } catch (error) {
-            resolve(positions);
-          }
-        });
-      }
-
-      const positions = (await Promise.all([gpsWithHold(false), gpsWithHold(true)])).flat();
-
-      if (positions.length === 0) return null;
-
-      const mostAccurate = positions.reduce((min, v) => Math.min(min, v.coords.accuracy), Infinity);
-      const accuratePositions = positions.filter((v) => v.coords.accuracy === mostAccurate);
-      const totalPos = accuratePositions.reduce((total, pos) => ({ lon: total.lon + pos.coords.longitude, lat: total.lat + pos.coords.latitude, t: total.t + pos.timestamp }), { lon: 0, lat: 0, t: 0 });
-      const avgPos = { lon: totalPos.lon / accuratePositions.length, lat: totalPos.lat / accuratePositions.length, t: totalPos.t / accuratePositions.length };
-
-      return avgPos;
-    }
+                _active = false;
+              }
+              if (position.coords.accuracy <= 200) {
+                if (
+                  _position === null
+                  || (
+                    _position !== null
+                    && position.coords.accuracy <= _position.r95
+                  )
+                ) {
+                  ++nReports;
+                  _position = {
+                    lon: parseFloat(position.coords.longitude.toFixed(6)),
+                    lat: parseFloat(position.coords.latitude.toFixed(6)),
+                    r95: position.coords.accuracy,
+                    t: new Date(position.timestamp),
+                  };
+                }
+              }
+            },
+            null,
+            { enableHighAccuracy: true, maximumAge: 0 },
+          );
+          initialTimeoutId = setTimeout(() => {
+            navigator.geolocation.clearWatch(watchId);
+            _active = false;
+            initialTimeoutId = null;
+          }, _timeout);
+        } catch (error) {
+          clearTimeout(initialTimeoutId);
+          clearTimeout(locateTimeoutId);
+          try {
+            navigator.geolocation.clearWatch(watchId);
+            _active = false;
+          } catch (error) {}
+        }
+        return true;
+      };
+      const last = () => {
+        if (_position === null) refresh();
+        return _position;
+      };
+      const isActive = () => _active;
+      return { refresh, last, isActive };
+    })();
 
     submitButtonValidator(mainForm);
     submitButtonValidator(entryForm);
@@ -408,16 +435,18 @@
       mainForm.hidden = true;
       document.getElementById("fill-stopid").textContent = mainData.get("stopid");
       document.getElementById("fill-author").textContent = mainData.get("author");
+      GPS.refresh();
       entryForm.addEventListener("submit", (ev) => {
         ev.preventDefault();
         const entryData = new FormData(entryForm);
-        const { stopid, author, event, route, timestamp } = {
+        const { stopid, author, event, route, timestamp, gps } = {
           ...Object.fromEntries(mainData),
           ...Object.fromEntries(entryData),
-          timestamp: new Date(),
+          timestamp: new Date().toJSON(),
+          gps: JSON.stringify(GPS.last())
         };
-        console.log({ stopid, author, event, route, timestamp });
-        log.push([stopid, author, event, route, timestamp]);
+        console.log({ stopid, author, event, route, timestamp, gps });
+        log.push([stopid, author, event, route, timestamp, gps]);
         localStorage.setItem(`bus-survey:log-${SCHEMA_VERSION}`, Papa.unparse(log));
         entryForm.reset();
         submitButtonCheck(entryForm);
