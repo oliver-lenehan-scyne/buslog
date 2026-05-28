@@ -75,3 +75,57 @@ async function submission(form) {
     });
   });
 }
+
+
+/** @param {HTMLFormElement} form */
+function bindSubmitComponent(form) {
+  const update = () => {
+    form.querySelectorAll(`button[type=submit]`).forEach(btn => {
+      btn.disabled = !form.checkValidity();
+    });
+  };
+  form.addEventListener("input", update);
+  form.addEventListener("reset", () => setTimeout(update, 0));
+}
+
+/** @param {HTMLFormElement} form */
+async function submission(form) {
+  return await new Promise((resolve) => {
+    const onSubmit = (ev) => {
+      ev.preventDefault();
+      form.removeEventListener(onSubmit);
+      resolve(new FormData(form, ev.submitter));
+    };
+    form.addEventListener("submit", onSubmit);
+  });
+}
+
+class FormComponent {
+  #form;
+
+  constructor(form) {
+    this.#form = form;
+  }
+
+  get promise() {
+    const onSubmit = (ev) => {
+      ev.preventDefault();
+      this.#form.removeEventListener(onSubmit);
+
+    };
+  }
+}
+
+function bindFormComponent(form) {
+  const data
+  return {
+    promise:
+  }
+}
+
+async function a() {
+  bindSubmitComponent(mainForm);
+  bindSubmitComponent()
+
+  await submission(mainForm);
+}
