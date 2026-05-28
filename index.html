@@ -352,6 +352,53 @@
       await navigator.share({ files: [save()] }).catch(() => browserDownload());
     }
 
+    /**
+     * @returns {Promise<{ lon: number, lat: number, t: number } | null>}
+    */
+    async function gps(hold = 5000) {
+      /**
+       * @returns {Promise<GeolocationPosition>}
+      */
+      async function gpsWithHold(accurate) {
+        return await new Promise(async (resolve) => {
+          const positions = [];
+          let timeout = null;
+          try {
+            const watchId = navigator.geolocation.watchPosition(
+              (position) => {
+                positions.push(position);
+                if (timeout === null) {
+                  const t0 = Date.now();
+                  timeout = setTimeout(() => {
+                    navigator.geolocation.clearWatch(watchId)
+                    resolve(positions);
+                  }, (t0 + hold) - Date.now());
+                }
+              },
+              (error) => {
+                navigator.geolocation.clearWatch(watchId);
+                resolve(positions);
+              },
+              { enableHighAccuracy: accurate },
+            );
+          } catch (error) {
+            resolve(positions);
+          }
+        });
+      }
+
+      const positions = (await Promise.all([gpsWithHold(false), gpsWithHold(true)])).flat();
+
+      if (positions.length === 0) return null;
+
+      const mostAccurate = positions.reduce((min, v) => Math.min(min, v.coords.accuracy), Infinity);
+      const accuratePositions = positions.filter((v) => v.coords.accuracy === mostAccurate);
+      const totalPos = accuratePositions.reduce((total, pos) => ({ lon: total.lon + pos.coords.longitude, lat: total.lat + pos.coords.latitude, t: total.t + pos.timestamp }), { lon: 0, lat: 0, t: 0 });
+      const avgPos = { lon: totalPos.lon / accuratePositions.length, lat: totalPos.lat / accuratePositions.length, t: totalPos.t / accuratePositions.length };
+
+      return avgPos;
+    }
+
     submitButtonValidator(mainForm);
     submitButtonValidator(entryForm);
 
