@@ -5,7 +5,7 @@
   <title>Bus Survey</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="lib/papaparse.min.js"></script>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=bus_alert,check,check_circle,download,login,logout,person_check,share,timer">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=block,bus_alert,check,check_circle,download,login,logout,person_check,share,timer">
   <style>
     .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24 }
   </style>
@@ -289,6 +289,15 @@
               <span class="component-textlabel">
                 <span class="material-symbols-outlined">logout</span>
                 <span class="text">Departing</span>
+              </span>
+            </label>
+          </div>
+          <div class="component-radiogroup-radioitem">
+            <input id="input-event-skip" type="radio" name="event" value="skip" required>
+            <label for="input-event-skip">
+              <span class="component-textlabel">
+                <span class="material-symbols-outlined">block</span>
+                <span class="text">Skipped</span>
               </span>
             </label>
           </div>
