@@ -338,7 +338,7 @@
       window.location.replace(window.location.pathname);
     }
 
-    const SCHEMA = ["stopid", "author", "event", "route", "timestamp"];
+    const SCHEMA = ["stopid", "author", "event", "route", "timestamp", "location"];
     const SCHEMA_VERSION = "0.0.1";
 
     const persisted = localStorage.getItem(`bus-survey:log-${SCHEMA_VERSION}`);
@@ -409,6 +409,80 @@
       await navigator.share({ files: [save()] }).catch(() => browserDownload());
     }
 
+    globalThis.GPS = (() => {
+      let _position = null;
+      let _timeout = 1 * 60 * 1000;
+      let _active = false;
+      const refresh = () => {
+        let nReports = 0;
+        let initialTimeoutId = null;
+        let locateTimeoutId = null;
+        if (_active) return false;
+        else _active = true;
+        try {
+          const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              if (initialTimeoutId !== null) {
+                clearTimeout(initialTimeoutId);
+                initialTimeoutId = null
+              }
+              if (locateTimeoutId === null) {
+                locateTimeoutId = setTimeout(() => {
+                  locateTimeoutId = null;
+                  navigator.geolocation.clearWatch(watchId);
+                  _active = false;
+                  if (_position === null) setTimeout(refresh, 5 * _timeout);
+                }, _timeout);
+              }
+              if (nReports >= 5) {
+                clearTimeout(locateTimeoutId);
+                navigator.geolocation.clearWatch(watchId);
+                _active = false;
+              }
+              if (position.coords.accuracy <= 200) {
+                if (
+                  _position === null
+                  || (
+                    _position !== null
+                    && position.coords.accuracy <= _position.r95
+                  )
+                ) {
+                  ++nReports;
+                  _position = {
+                    lon: parseFloat(position.coords.longitude.toFixed(6)),
+                    lat: parseFloat(position.coords.latitude.toFixed(6)),
+                    r95: position.coords.accuracy,
+                    t: new Date(position.timestamp),
+                  };
+                }
+              }
+            },
+            null,
+            { enableHighAccuracy: true, maximumAge: 0 },
+          );
+          initialTimeoutId = setTimeout(() => {
+            navigator.geolocation.clearWatch(watchId);
+            _active = false;
+            initialTimeoutId = null;
+          }, _timeout);
+        } catch (error) {
+          clearTimeout(initialTimeoutId);
+          clearTimeout(locateTimeoutId);
+          try {
+            navigator.geolocation.clearWatch(watchId);
+            _active = false;
+          } catch (error) {}
+        }
+        return true;
+      };
+      const last = () => {
+        if (_position === null) refresh();
+        return _position;
+      };
+      const isActive = () => _active;
+      return { refresh, last, isActive };
+    })();
+
     (async () => {
       const main = document.querySelector("main");
       const template = document.querySelector("template");
@@ -416,10 +490,11 @@
       const detailsForm = bindSubmitComponent(importTemplate(template, "#template-details"));
       main.replaceChildren(detailsForm);
       const { stopid, author } = Object.fromEntries(await submissionOf(detailsForm));
+      GPS.refresh();
 
       const collectionForm = bindSubmitComponent(importTemplate(template, "#template-collection", {
-        "#slot-stopid": detailsFormData.get("stopid"),
-        "#slot-author": detailsFormData.get("author"),
+        "#slot-stopid": stopid,
+        "#slot-author": author,
       }));
       const congestionForm = bindSubmitComponent(importTemplate(template, "#template-congestion"));
       main.replaceChildren(collectionForm, congestionForm);
@@ -427,8 +502,9 @@
         while (true) {
           const { event, route } = Object.fromEntries(await submissionOf(collectionForm));
           const timestamp = new Date();
-          console.log({ stopid, author, event, route, timestamp });
-          log.push([stopid, author, event, route, timestamp]);
+          const gps = GPS.last();
+          console.log({ stopid, author, event, route, timestamp, gps });
+          log.push([stopid, author, event, route, timestamp.toJSON(), `geo:${gps.lat},${gps.lon};u=${gps.r95};t=${gps.t}`]);
           localStorage.setItem(`bus-survey:log-${SCHEMA_VERSION}`, Papa.unparse(log));
         }
       })();
