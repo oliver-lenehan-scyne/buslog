@@ -111,7 +111,7 @@
       border: none;
       border-bottom: 2px solid #CCCCCC;
       background-color: #333333;
-      color: currentColor;
+      color: #FFFFFF;
       font-family: inherit;
       font-size: 2rem;
       padding: 1rem;
@@ -130,7 +130,7 @@
 
     .component-radiogroup {
       display: flex;
-      border: 1px solid currentColor;
+      border: 1px solid #FFFFFF;
       border-radius: 0.5rem;
       background-color: #333333;
       overflow: hidden;
@@ -148,13 +148,14 @@
       width: 100%;
       padding: 1rem 0;
       font-size: 1rem;
+      cursor: pointer;
     }
     .component-radiogroup > .component-radiogroup-radioitem:not(:first-child) > label::before {
       content: "";
       position: absolute;
       display: inline-flex;
       width: 1px;
-      background-color: currentColor;
+      background-color: #FFFFFF;
       top: 0.5rem;
       bottom: 0.5rem;
     }
@@ -222,7 +223,51 @@
       font-size: 8rem;
       border-radius: 50%;
       background-color: var(--grn);
-      color: #ffffff;
+      color: #FFFFFF;
+    }
+
+    .component-checkbox {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+    .component-checkbox > input[type=checkbox] {
+      position: relative;
+      appearance: none;
+      margin: 0;
+      width: 2rem;
+      height: 2rem;
+      align-self: flex-start;
+      background-color: #333333;
+      border: 1px solid #FFFFFF;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    .component-checkbox > input[type=checkbox]:checked {
+      background-color: var(--blu);
+    }
+    .component-checkbox > input[type=checkbox]:checked::after {
+      content: "✔";
+      position: absolute;
+      display: flex;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: #FFFFFF;
+      font-weight: bold;
+    }
+    .component-checkbox > label {
+      padding-left: 0.75rem;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+    .component-checkbox > input[type=checkbox]:checked + * .ul {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -257,7 +302,7 @@
           <label for="input-author">Surveyor</label>
           <input id="input-author" type="text" name="author" placeholder="Joe Bloggs" required>
         </div>
-        <div>
+        <div style="margin-top: 2rem;">
           <button type="submit" class="bg-grn" disabled>
             <span class="component-textlabel">
               <span class="material-symbols-outlined">person_check</span>
@@ -266,7 +311,7 @@
           </button>
         </div>
         <div>
-          <p><span style="color: var(--blu)">*</span>Once you "Sign on", GPS will activate temporarily to note the bus stop's location for comparison later.</p>
+          <p><span style="color: var(--blu)">*</span>Once you "Sign on", GPS will activate temporarily every 30 minutes to note the bus stop's location.</p>
         </div>
       </fieldset>
     </form>
@@ -309,7 +354,18 @@
           <label for="input-route">Bus Route Identifier</label>
           <input id="input-route" type="text" name="route" placeholder="144, 610X, B1, ... " required>
         </div>
-        <div>
+        <fieldset>
+          <legend>Observations</legend>
+          <div class="component-checkbox">
+            <input id="input-check-congestion" type="checkbox" name="congestion" value="1">
+            <label for="input-check-congestion">
+              <span class="component-textlabel">
+                <span class="text">Traffic Congestion</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
+        <div style="margin-top: 2rem;">
           <button type="submit" class="bg-grn" disabled>
             <span class="component-textlabel">
               <span class="material-symbols-outlined">check</span>
@@ -317,17 +373,6 @@
             </span>
           </button>
         </div>
-      </fieldset>
-      <div class="component-submitted" hidden><span class="material-symbols-outlined">check_circle</span></div>
-    </form>
-    <form id="template-congestion" autocomplete="off" action="javascript:void(0)">
-      <fieldset>
-        <button type="submit" name="event" class="bg-ylw" value="congested">
-          <span class="component-textlabel">
-            <span class="material-symbols-outlined">bus_alert</span>
-            <span class="text">Report Congestion</span>
-          </span>
-        </button>
       </fieldset>
       <div class="component-submitted" hidden><span class="material-symbols-outlined">check_circle</span></div>
     </form>
@@ -341,7 +386,7 @@
       window.location.replace(window.location.pathname);
     }
 
-    const SCHEMA = ["stopid", "author", "event", "route", "timestamp", "location"];
+    const SCHEMA = ["stopid", "author", "event", "route", "timestamp", "location", "congestion"];
     const SCHEMA_VERSION = "0.0.1";
 
     const persisted = localStorage.getItem(`bus-survey:log-${SCHEMA_VERSION}`);
@@ -504,27 +549,14 @@
         "#slot-stopid": stopid,
         "#slot-author": author,
       }));
-      const congestionForm = bindSubmitComponent(importTemplate(template, "#template-congestion"));
-      main.replaceChildren(collectionForm, congestionForm);
-      (async () => {
-        while (true) {
-          const { event, route } = Object.fromEntries(await submissionOf(collectionForm));
-          const timestamp = new Date();
-          const gps = GPS.last();
-          console.log({ stopid, author, event, route, timestamp });
-          log.push([stopid, author, event, route, timestamp.toJSON(), ""]);
-          localStorage.setItem(`bus-survey:log-${SCHEMA_VERSION}`, Papa.unparse(log));
-        }
-      })();
-      (async () => {
-        while (true) {
-          const { event } = Object.fromEntries(await submissionOf(congestionForm));
-          const timestamp = new Date();
-          console.log({ stopid, author, event, timestamp });
-          log.push([stopid, author, event, "", timestamp, ""]);
-          localStorage.setItem(`bus-survey:log-${SCHEMA_VERSION}`, Papa.unparse(log));
-        }
-      })();
+      main.replaceChildren(collectionForm);
+      while (true) {
+        const { event, route, congestion } = Object.fromEntries(await submissionOf(collectionForm));
+        const timestamp = new Date();
+        console.log({ stopid, author, event, route, timestamp, congestion });
+        log.push([stopid, author, event, route, timestamp.toJSON(), "", congestion]);
+        localStorage.setItem(`bus-survey:log-${SCHEMA_VERSION}`, Papa.unparse(log));
+      }
     })();
   </script>
 </body>
