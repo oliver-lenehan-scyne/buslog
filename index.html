@@ -147,7 +147,7 @@
     .component-radiogroup > .component-radiogroup-radioitem > label {
       width: 100%;
       padding: 1rem 0;
-      font-size: 1.5rem;
+      font-size: 1rem;
     }
     .component-radiogroup > .component-radiogroup-radioitem:not(:first-child) > label::before {
       content: "";
@@ -454,6 +454,7 @@
                     r95: position.coords.accuracy,
                     t: new Date(position.timestamp),
                   };
+                  globalThis.GPS.onPosition?.(_position);
                 }
               }
             },
@@ -490,6 +491,9 @@
       const detailsForm = bindSubmitComponent(importTemplate(template, "#template-details"));
       main.replaceChildren(detailsForm);
       const { stopid, author } = Object.fromEntries(await submissionOf(detailsForm));
+      GPS.onPosition = (gps) => {
+        log.push([stopid, author, "gps", "", new Date().toJSON(), `geo:${gps.lat},${gps.lon};u=${gps.r95}`]);
+      };
       GPS.refresh();
 
       const collectionForm = bindSubmitComponent(importTemplate(template, "#template-collection", {
@@ -503,8 +507,8 @@
           const { event, route } = Object.fromEntries(await submissionOf(collectionForm));
           const timestamp = new Date();
           const gps = GPS.last();
-          console.log({ stopid, author, event, route, timestamp, gps });
-          log.push([stopid, author, event, route, timestamp.toJSON(), `geo:${gps.lat},${gps.lon};u=${gps.r95};t=${gps.t}`]);
+          console.log({ stopid, author, event, route, timestamp });
+          log.push([stopid, author, event, route, timestamp.toJSON(), ""]);
           localStorage.setItem(`bus-survey:log-${SCHEMA_VERSION}`, Papa.unparse(log));
         }
       })();
@@ -513,7 +517,7 @@
           const { event } = Object.fromEntries(await submissionOf(congestionForm));
           const timestamp = new Date();
           console.log({ stopid, author, event, timestamp });
-          log.push([stopid, author, event, "", timestamp]);
+          log.push([stopid, author, event, "", timestamp, ""]);
           localStorage.setItem(`bus-survey:log-${SCHEMA_VERSION}`, Papa.unparse(log));
         }
       })();
