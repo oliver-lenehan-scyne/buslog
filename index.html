@@ -498,6 +498,7 @@
         log.push([stopid, author, "gps", "", new Date().toJSON(), `geo:${gps.lat},${gps.lon};u=${gps.r95}`]);
       };
       GPS.refresh();
+      setInterval(() => { GPS.refresh() }, 30 * 60 * 1000);
 
       const collectionForm = bindSubmitComponent(importTemplate(template, "#template-collection", {
         "#slot-stopid": stopid,
