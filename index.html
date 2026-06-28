@@ -318,8 +318,9 @@
     </form>
     <form id="template-collection" autocomplete="off" action="javascript:void(0)">
       <div class="component-metadata">
-        <div>Bus Stop: <span id="slot-stopid"></span></div>
-        <div>Surveyor: <span id="slot-author"></span></div>
+        <div>Bus Stop:<br><span id="slot-stopid"></span></div>
+        <div>Surveyor:<br><span id="slot-author"></span></div>
+        <div># Entries:<br><span id="slot-counter"></span></div>
       </div>
       <fieldset>
         <div class="component-radiogroup">
@@ -552,6 +553,7 @@
       }));
       main.replaceChildren(collectionForm);
       while (true) {
+        collectionForm.querySelector("#slot-counter").textContent = log.length;
         const { event, route, congestion } = Object.fromEntries(await submissionOf(collectionForm));
         const timestamp = new Date();
         console.log({ stopid, author, event, route, timestamp, congestion });
